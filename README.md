@@ -43,6 +43,9 @@ The script is configured using command line options. You can provide your AWS cr
                             - 58.0.0.0/8
                             - 123.213.0.0/16,58.0.0.0/8,195.234.023.0
                             - 195.234.234.23,195.234.234.24
+      --replace
+			    If the instance is alredy assigned an IP not in
+  			    valid-ips then replace it
 
 The `--valid-ips` option require the public IPs in a comma separated sequence. E.g. `56.123.56.123,56.123.56.124,56.123.56.125`.
 
@@ -58,15 +61,17 @@ Required IAM permissions
 
 **Community contribution much appreciated on this!**
 
-We have been using the following IAM policys to be able to list and associate Elastic IPs. This can probably be narrowed down abit. It allows EC2 read-only (from the IAM wizard) and `ec2:AssociateAddress` permissions:
+We have been using the following IAM policys to be able to list and associate Elastic IPs. This can probably be narrowed down a bit. It allows EC2 read-only (from the IAM wizard), `ec2:AssociateAddress` and `ec2:DisassociateAddress` permissions:
 
     {
+      "Version": "2012-10-17",
       "Statement": [
         {
           "Effect": "Allow",
           "Action": [
             "ec2:AssociateAddress",
-            "ec2:Describe*"
+            "ec2:Describe*",
+            "ec2:DisassociateAddress"
           ],
           "Resource": "*"
         }

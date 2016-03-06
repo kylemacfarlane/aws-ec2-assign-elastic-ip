@@ -49,9 +49,13 @@ def main():
     # Get our instance name
     instance_id = boto.utils.get_instance_metadata()['instance-id']
 
+    # Get the address already associated with the instance
+    associated_address = _get_associated_address(instance_id)
+
     # Check if the instance already has an Elastic IP
     # If so, exit
-    if _has_associated_address(instance_id):
+    if associated_address and \
+       (not args.replace or _is_valid(associated_address.public_ip)):
         logger.warning('{0} is already assigned an Elastic IP. Exiting.'.format(
             instance_id))
         sys.exit(0)
@@ -62,6 +66,14 @@ def main():
     # Exit if there were no available Elastic IPs
     if not address:
         sys.exit(1)
+
+    # Unassign existing IP if needed
+    if associated_address and args.replace:
+        if args.dry_run:
+            logger.info('Would unassign IP {0}'.format(
+                associated_address.public_ip))
+        else:
+            _unassign_address(associated_address)
 
     # Assign the Elastic IP to our instance
     if args.dry_run:
@@ -103,6 +115,25 @@ def _assign_address(instance_id, address):
         address.public_ip, instance_id))
 
 
+def _unassign_address(address):
+    """ Assign an address to the given instance ID
+    :type address: boto.ec2.address
+    :param address: Elastic IP address
+    :returns: None
+    """
+    logger.debug('Trying to disassociate {0}'.format(address.public_ip))
+
+    try:
+        address.disassociate()
+    except Exception as error:
+        logger.error('Failed to disassociate {0}. Reason: {1}'.format(
+            address.public_ip, error))
+        sys.exit(1)
+
+    logger.info('Successfully disassociated Elastic IP {0}'.format(
+        address.public_ip))
+
+
 def _get_unassociated_address():
     """ Return the first unassociated EIP we can find
 
@@ -135,16 +166,15 @@ def _get_unassociated_address():
     return eip
 
 
-def _has_associated_address(instance_id):
-    """ Check if the instance has an Elastic IP association
+def _get_associated_address(instance_id):
+    """ Return first address associated with the instance
 
-    :type instance_id: str
-    :param instance_id: Instances ID
-    :returns: bool -- True if the instance has an Elastic IP associated
+    :returns: boto.ec2.address or None
     """
-    if connection.get_all_addresses(filters={'instance-id': instance_id}):
-        return True
-    return False
+    address = connection.get_all_addresses(filters={'instance-id': instance_id})
+    if address:
+        address = address[0]
+    return address
 
 
 def _is_valid(address):
